@@ -10,7 +10,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 # Reproduce the Python package set declared by the Odoo 20.0.20261015 .deb
 # using Ubuntu 24.04 OS packages; version differences remain to be audited.
-# PDF wkhtmltopdf and rtlcss toolchain deliberately not included yet.
+# Research PDF/RTL parity uses the same wkhtmltox binary family as the official image.\n# This is not yet a security-reviewed or reproducibly locked production image.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates adduser \
     python3 \
@@ -31,6 +31,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     postgresql-client fonts-dejavu-core fonts-inconsolata \
     fonts-font-awesome fonts-roboto-unhinted gsfonts \
     && rm -rf /var/lib/apt/lists/*
+
+# The official Odoo 20 Docker image also uses wkhtmltox 0.12.6.1-3
+# (patched Qt). Verify against its published per-arch SHA-1 checksum.
+# RTL CSS version is pinned to the version observed in that image.
+ARG TARGETARCH=amd64
+RUN set -eux; \
+    case "$TARGETARCH" in \
+      amd64) WKHTMLTOPDF_ARCH=amd64; WKHTMLTOPDF_SHA=967390a759707337b46d1c02452e2bb6b2dc6d59 ;; \
+      arm64) WKHTMLTOPDF_ARCH=arm64; WKHTMLTOPDF_SHA=90f6e69896d51ef77339d3f3a20f8582bdf496cc ;; \
+      ppc64le|ppc64el) WKHTMLTOPDF_ARCH=ppc64el; WKHTMLTOPDF_SHA=5312d7d34a25b321282929df82e3574319aed25c ;; \
+      *) echo "Unsupported wkhtmltopdf architecture: $TARGETARCH" >&2; exit 1 ;; \
+    esac; \
+    curl -fsSL -o /tmp/wkhtmltox.deb \
+      "https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6.1-3/wkhtmltox_0.12.6.1-3.jammy_${WKHTMLTOPDF_ARCH}.deb"; \
+    echo "$WKHTMLTOPDF_SHA  /tmp/wkhtmltox.deb" | sha1sum -c -; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends /tmp/wkhtmltox.deb; \
+    rm -f /tmp/wkhtmltox.deb; \
+    npm install --global rtlcss@4.3.0; \
+    rm -rf /var/lib/apt/lists/*
 
 RUN useradd --system --create-home --home-dir /var/lib/odoo \
       --shell /usr/sbin/nologin odoo \
