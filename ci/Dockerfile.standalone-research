@@ -1,0 +1,50 @@
+# Research-only independent Odoo 20 source runtime; NOT production-ready.
+# Source tree is the complete, pinned Odoo Git checkout used as build context.
+# Does not use the official Odoo binary image or install the Odoo .deb.
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    LANG=C.UTF-8 \
+    PYTHONPATH=/opt/odoo \
+    ODOO_RC=/etc/odoo/odoo.conf
+
+# Reproduce the Python package set declared by the Odoo 20.0.20261015 .deb
+# using Ubuntu 24.04 OS packages; version differences remain to be audited.
+# PDF wkhtmltopdf and rtlcss toolchain deliberately not included yet.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates adduser \
+    python3 \
+    python3-asn1crypto python3-babel python3-cbor2 \
+    python3-chardet python3-cryptography python3-dateutil \
+    python3-docutils python3-geoip2 python3-gevent \
+    python3-greenlet python3-h11 python3-idna \
+    python3-jinja2 python3-libsass python3-lxml-html-clean \
+    python3-markupsafe python3-num2words python3-ofxparse \
+    python3-openpyxl python3-openssl python3-pil \
+    python3-polib python3-psutil python3-psycopg2 \
+    python3-pypdf python3-qrcode python3-reportlab \
+    python3-requests python3-rjsmin python3-serial \
+    python3-stdnum python3-urllib3 python3-usb \
+    python3-vobject python3-werkzeug python3-xlrd \
+    python3-xlsxwriter python3-zeep python3-freezegun \
+    python3-magic python3-passlib python3-renderpm \
+    postgresql-client fonts-dejavu-core fonts-inconsolata \
+    fonts-font-awesome fonts-roboto-unhinted gsfonts \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN useradd --system --create-home --home-dir /var/lib/odoo \
+      --shell /usr/sbin/nologin odoo \
+    && mkdir -p /opt/odoo /etc/odoo /mnt/extra-addons \
+    && chown -R odoo:odoo /var/lib/odoo /opt/odoo /mnt/extra-addons \
+    && printf '[options]\naddons_path = /opt/odoo/odoo/addons,/opt/odoo/addons,/mnt/extra-addons\ndata_dir = /var/lib/odoo\n' > /etc/odoo/odoo.conf
+
+COPY --chown=odoo:odoo odoo/ /opt/odoo/odoo/
+COPY --chown=odoo:odoo addons/ /opt/odoo/addons/
+COPY --chown=odoo:odoo odoo-bin /usr/local/bin/odoo
+RUN chmod 0755 /usr/local/bin/odoo
+
+USER odoo
+WORKDIR /var/lib/odoo
+EXPOSE 8069 8072
+ENTRYPOINT ["odoo"]
+CMD ["--help"]
