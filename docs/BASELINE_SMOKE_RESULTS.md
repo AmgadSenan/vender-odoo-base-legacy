@@ -19,6 +19,10 @@
 | Independent Ubuntu research image | [41171915475](https://github.com/AmgadSenan/vender-odoo-base/actions/runs/41171915475) | **Passed** | Build complete source from `ubuntu:24.04` OS packages; Odoo CLI, addons, assert that `odoo.deb` is not installed |
 | Independent Ubuntu research image + ephemeral database | [41172067098](https://github.com/AmgadSenan/vender-odoo-base/actions/runs/41172067098) | **Passed** | Independent image builds and initializes `base,web` on disposable PostgreSQL `17.11` |
 
+| Independent Ubuntu + PDF/RTL executable smoke + ephemeral database | [41172885635](https://github.com/AmgadSenan/vender-odoo-base/actions/runs/41172885635) | **Passed** | Patched-Qt `wkhtmltopdf 0.12.6.1`, `rtlcss 4.3.0`, structurally valid one-page Arabic HTML-to-PDF, RTL CSS property flips, PostgreSQL `17.11` `base,web` initialization |
+
+**Important limit:** This PDF test checks that an Arabic HTML page produces a readable PDF structure and that rtlcss flips CSS properties. It does **not** verify visual Arabic shaping or real Odoo report generation; those require image inspection and functional report tests. The source image uses matching versions of PDF/RTL tools but is not yet a production runtime.
+
 The comparison and independent images were built solely inside GitHub-hosted runners. **No images were published to a registry, and no Vender production containers or databases were changed.**
 
 ## Two separate research images
@@ -29,7 +33,7 @@ The comparison and independent images were built solely inside GitHub-hosted run
 ## Remaining acceptance gates
 
 - Pin and audit immutable OS base digest and Python/system dependency versions, and check security/licensing implications.
-- Add the report/PDF `wkhtmltopdf`, RTL tools and font/runtime support to the independent image; test PDF and RTL output.
+- **PDF/RTL executables are installed and passed synthetic smoke tests**; visually inspect Arabic font shaping and test real Odoo QWeb reports, assets, headers/footers and RTL rendering.
 - Run Vender add-on integration and representative business workflows on an **isolated copy** of a Vender database and filestore, with external side effects disabled.
 - Test installed module upgrades and schema/data compatibility, permissions, assets, WebSocket/bus, restart and rollback. Current `base,web` initialization is **not** full functionality coverage.
 - Review source and image size, reproducibility, dependency CVEs, and release-build provenance before publishing any immutable image.
