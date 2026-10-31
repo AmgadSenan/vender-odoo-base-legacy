@@ -106,9 +106,6 @@
                                     <!-- Invisible to avoid breaking any custom inheriting templates -->
                                     <field name="module_sms" invisible="1"/>
                                 </setting>
-                                <setting help="Automatically enrich your contact base with company data" title="When populating your address book, Odoo provides a list of matching companies. When selecting one item, the company data and logo are auto-filled." id="partner_autocomplete">
-                                    <field name="module_partner_autocomplete"/>
-                                </setting>
                         </block>
                     </div>
 
