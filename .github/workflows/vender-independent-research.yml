@@ -1,0 +1,80 @@
+name: Vender independent Odoo source image research
+
+on:
+  push:
+    branches:
+      - vender/architecture
+    paths:
+      - .github/workflows/vender-independent-research.yml
+      - ci/Dockerfile.standalone-research
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vender-independent-research-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout public research Dockerfile
+        uses: actions/checkout@v4
+        with:
+          path: harness
+          persist-credentials: false
+
+      - name: Checkout exact Odoo Community package source
+        uses: actions/checkout@v4
+        with:
+          repository: AmgadSenan/vender-odoo-base
+          ref: 49529f034a60e4e9838e08e0a5616e5f2f38c601
+          fetch-depth: 1
+          path: source
+          persist-credentials: false
+
+      - name: Check pinned upstream source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C source rev-parse HEAD)" = "49529f034a60e4e9838e08e0a5616e5f2f38c601"
+          test -f source/odoo/addons/base/__manifest__.py
+          test -f source/addons/web/__manifest__.py
+
+      - name: Build standalone experimental Odoo runtime with Ubuntu
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker build --file harness/ci/Dockerfile.standalone-research \
+            --tag vender/odoo-independent:source-49529f034a60 source
+
+      - name: Check source image CLI and absence of Odoo binary package
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --network none vender/odoo-independent:source-49529f034a60 --version
+          docker run --rm --network none vender/odoo-independent:source-49529f034a60 --help > /tmp/standalone-help.txt
+          test -s /tmp/standalone-help.txt
+          if docker run --rm --network none --entrypoint dpkg-query \
+              vender/odoo-independent:source-49529f034a60 -W odoo > /dev/null 2>&1; then
+            echo "ERROR: Unexpected official Odoo .deb in independent image" >&2
+            exit 1
+          fi
+          docker run --rm --network none --entrypoint python3 \
+            vender/odoo-independent:source-49529f034a60 \
+            -c 'import odoo,odoo.cli,pathlib; n=len(list(pathlib.Path("/opt/odoo/addons").glob("*/__manifest__.py"))); print("Odoo full-source addons:",n); assert n>500'
+
+      - name: Document experimental-only result
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Standalone full-source baseline experiment"
+            echo "- Ubuntu 24.04 Python packages plus pinned official Odoo Community source."
+            echo "- No Odoo .deb and no inherited Odoo official binary image."
+            echo "- **Not production-ready:** Ubuntu and system packages require immutable locking; PDF/wkhtmltopdf, RTL tooling, WebSocket and database tests are not yet covered."
+            echo "- Image remains local to this GitHub Actions job (not published/deployed)."
+          } >> "$GITHUB_STEP_SUMMARY"
