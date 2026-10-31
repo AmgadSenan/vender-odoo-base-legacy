@@ -20,6 +20,20 @@ jobs:
   source-image:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:17.11
+        env:
+          POSTGRES_USER: odoo
+          POSTGRES_PASSWORD: vender_independent_smoke_only
+          POSTGRES_DB: vender_independent_smoke
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U odoo -d vender_independent_smoke"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Checkout public research Dockerfile
         uses: actions/checkout@v4
@@ -67,6 +81,18 @@ jobs:
             vender/odoo-independent:source-49529f034a60 \
             -c 'import odoo,odoo.cli,pathlib; n=len(list(pathlib.Path("/opt/odoo/addons").glob("*/__manifest__.py"))); print("Odoo full-source addons:",n); assert n>500'
 
+      - name: Initialize independent source Odoo base and web on ephemeral PostgreSQL 17
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --network host \
+            vender/odoo-independent:source-49529f034a60 \
+            --db_host=127.0.0.1 --db_port=5432 \
+            --db_user=odoo --db_password=vender_independent_smoke_only \
+            --database=vender_independent_smoke \
+            --init=base,web --without-demo=all --stop-after-init --no-http \
+            --log-level=warn
+
       - name: Document experimental-only result
         if: always()
         shell: bash
@@ -75,6 +101,6 @@ jobs:
             echo "## Standalone full-source baseline experiment"
             echo "- Ubuntu 24.04 Python packages plus pinned official Odoo Community source."
             echo "- No Odoo .deb and no inherited Odoo official binary image."
-            echo "- **Not production-ready:** Ubuntu and system packages require immutable locking; PDF/wkhtmltopdf, RTL tooling, WebSocket and database tests are not yet covered."
+            echo "- **Not production-ready:** Ubuntu and system packages require immutable locking; PDF/wkhtmltopdf, RTL tooling, WebSocket, private Vender addons and production data remain untested."
             echo "- Image remains local to this GitHub Actions job (not published/deployed)."
           } >> "$GITHUB_STEP_SUMMARY"
