@@ -6,10 +6,9 @@ from datetime import datetime, timedelta
 import odoo
 
 from odoo.tools.misc import mute_logger
-from odoo.addons.mail.tests.common import mail_new_test_user
+from odoo.addons.mail.tests.common import MailCommon, mail_new_test_user
 from odoo.addons.mail.tools.jwt import InvalidVapidError
 from odoo.addons.mail.tools.web_push import ENCRYPTION_BLOCK_OVERHEAD, ENCRYPTION_HEADER_SIZE
-from odoo.addons.sms.tests.common import SMSCommon
 from odoo.addons.test_mail.data.test_mail_data import MAIL_TEMPLATE
 from odoo.tests import tagged
 from markupsafe import Markup
@@ -18,7 +17,7 @@ from types import SimpleNamespace
 
 
 @tagged('post_install', '-at_install', 'mail_push')
-class TestWebPushNotification(SMSCommon):
+class TestWebPushNotification(MailCommon):
 
     @classmethod
     def setUpClass(cls):
