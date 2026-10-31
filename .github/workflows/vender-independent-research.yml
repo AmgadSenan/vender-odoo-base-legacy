@@ -81,6 +81,45 @@ jobs:
             vender/odoo-independent:source-49529f034a60 \
             -c 'import odoo,odoo.cli,pathlib; n=len(list(pathlib.Path("/opt/odoo/addons").glob("*/__manifest__.py"))); print("Odoo full-source addons:",n); assert n>500'
 
+      - name: Check patched-Qt PDF and RTL CSS with Arabic sample
+        shell: bash
+        run: |
+          set -euo pipefail
+          image=vender/odoo-independent:source-49529f034a60
+          docker run --rm --network none --entrypoint wkhtmltopdf "$image" --version | tee /tmp/wk-version.txt
+          grep -q "with patched qt" /tmp/wk-version.txt
+          docker run --rm --network none --entrypoint rtlcss "$image" --version | tee /tmp/rtl-version.txt
+          grep -q "4.3.0" /tmp/rtl-version.txt
+          mkdir -p "$RUNNER_TEMP/vender-smoke"
+          chmod 777 "$RUNNER_TEMP/vender-smoke"
+          cat > "$RUNNER_TEMP/vender-smoke/input.css" <<'CSS'
+          .invoice { margin-left: 10px; padding-right: 4px; text-align: left; }
+          CSS
+          cat > "$RUNNER_TEMP/vender-smoke/arabic.html" <<'HTML'
+          <!doctype html>
+          <html lang="ar" dir="rtl">
+          <head><meta charset="utf-8"><style>
+          body { font-family: "DejaVu Sans", sans-serif; font-size: 18pt; }
+          </style></head>
+          <body><p dir="rtl">فاتورة تجريبية — اختبار العربية ١٢٣</p></body>
+          </html>
+          HTML
+          docker run --rm --network none \
+            -v "$RUNNER_TEMP/vender-smoke:/smoke" \
+            --entrypoint rtlcss "$image" \
+            /smoke/input.css /smoke/output.css
+          grep -q 'margin-right: 10px' "$RUNNER_TEMP/vender-smoke/output.css"
+          grep -q 'padding-left: 4px' "$RUNNER_TEMP/vender-smoke/output.css"
+          docker run --rm --network none \
+            -v "$RUNNER_TEMP/vender-smoke:/smoke" \
+            --entrypoint wkhtmltopdf "$image" \
+            --quiet /smoke/arabic.html /smoke/arabic.pdf
+          docker run --rm --network none \
+            -v "$RUNNER_TEMP/vender-smoke:/smoke:ro" \
+            --entrypoint python3 "$image" \
+            -c 'from pypdf import PdfReader; p="/smoke/arabic.pdf"; r=PdfReader(p); print("Generated PDF pages:",len(r.pages)); assert len(r.pages)==1'
+          echo "PDF file generated and RTL CSS flips expected properties. Arabic typography requires subsequent visual review."
+
       - name: Initialize independent source Odoo base and web on ephemeral PostgreSQL 17
         shell: bash
         run: |
@@ -101,6 +140,6 @@ jobs:
             echo "## Standalone full-source baseline experiment"
             echo "- Ubuntu 24.04 Python packages plus pinned official Odoo Community source."
             echo "- No Odoo .deb and no inherited Odoo official binary image."
-            echo "- **Not production-ready:** Ubuntu and system packages require immutable locking; PDF/wkhtmltopdf, RTL tooling, WebSocket, private Vender addons and production data remain untested."
+            echo "- **Not production-ready:** Ubuntu and system packages require immutable locking; wkhtmltopdf and rtlcss have executable smoke checks, but full Odoo PDF reports, Arabic appearance/visual review, WebSocket, private Vender addons and production data remain untested."
             echo "- Image remains local to this GitHub Actions job (not published/deployed)."
           } >> "$GITHUB_STEP_SUMMARY"
