@@ -1,0 +1,91 @@
+name: Vender Odoo full-source parity smoke (isolated)
+
+on:
+  push:
+    branches:
+      - vender/architecture
+    paths:
+      - .github/workflows/vender-source-parity.yml
+      - ci/Dockerfile.source-parity
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vender-source-parity-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  parity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Checkout public test harness
+        uses: actions/checkout@v4
+        with:
+          path: harness
+          persist-credentials: false
+
+      - name: Checkout complete original Odoo 20 source at pinned SHA
+        uses: actions/checkout@v4
+        with:
+          repository: AmgadSenan/vender-odoo-base
+          ref: 25e862d803aed1ff1a7cf3bef73b7686b8ef9741
+          path: source
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify source identity and complete source layout
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected=25e862d803aed1ff1a7cf3bef73b7686b8ef9741
+          test "$(git -C source rev-parse HEAD)" = "$expected"
+          for path in odoo-bin odoo/cli/__init__.py odoo/addons/base/__manifest__.py addons/web/__manifest__.py LICENSE requirements.txt; do
+            test -f "source/$path"
+          done
+          echo "Pinned upstream source: $expected"
+          echo "Source addon manifests: $(find source/odoo/addons source/addons -name __manifest__.py -type f | wc -l)"
+
+      - name: Build comparison image from full Odoo Git source
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker build --file harness/ci/Dockerfile.source-parity \
+            --tag vender/odoo-source-parity:research-25e862d803ae source
+
+      - name: Compare runtime CLI in offline containers
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Reference Odoo image:"
+          docker run --rm --network none --entrypoint odoo \
+            odoo:20.0-20261015@sha256:3de556969ca7916fe7d1a7fa3be2a49307a147c5fa1491bc2c57dcb0b950bea5 --version
+          echo "Source-built comparison image:"
+          docker run --rm --network none --entrypoint odoo \
+            vender/odoo-source-parity:research-25e862d803ae --version
+          docker run --rm --network none --entrypoint odoo \
+            vender/odoo-source-parity:research-25e862d803ae --help > /tmp/odoo-source-help.txt
+          test -s /tmp/odoo-source-help.txt
+
+      - name: Verify Python runtime and source addon availability
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --network none --entrypoint python3 \
+            vender/odoo-source-parity:research-25e862d803ae \
+            -c 'import odoo, odoo.cli, odoo.release, pathlib; p=pathlib.Path("/usr/lib/python3/dist-packages/odoo/addons"); addons=list(p.glob("*/__manifest__.py")); print("odoo_source:",list(odoo.__path__)); print("installed_addon_manifests:",len(addons)); assert len(addons)>500'
+          echo "Source parity CLI smoke passed (database integration NOT tested)."
+
+      - name: Record experimental-only outcome
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Full-source experimental comparison"
+            echo "- Upstream source commit: \`25e862d803aed1ff1a7cf3bef73b7686b8ef9741\` (candidate)."
+            echo "- Reference image: \`odoo:20.0-20261015@sha256:3de556969ca7916fe7d1a7fa3be2a49307a147c5fa1491bc2c57dcb0b950bea5\`."
+            echo "- This job only checks image construction and offline CLI imports. It does **not** verify matching business logic, full DB registry, installed modules, or production readiness."
+            echo "- It does **not** create/push an image release or deploy anything."
+          } >> "$GITHUB_STEP_SUMMARY"
