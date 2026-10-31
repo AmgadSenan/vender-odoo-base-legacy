@@ -48,17 +48,17 @@ jobs:
           docker build -f harness/ci/Dockerfile.standalone-research \
             --label org.opencontainers.image.source=https://github.com/AmgadSenan/vender-odoo-base \
             --label org.opencontainers.image.revision=49529f034a60e4e9838e08e0a5616e5f2f38c601 \
-            -t ghcr.io/amgdsenan/vender-odoo-base:research-20261015-49529f0 source
+            -t ghcr.io/amgadsenan/vender-odoo-base:research-20261015-49529f0 source
       - name: Check image before upload
         shell: bash
         run: |
           set -euo pipefail
           docker run --rm --network none --entrypoint odoo \
-            ghcr.io/amgdsenan/vender-odoo-base:research-20261015-49529f0 --version
+            ghcr.io/amgadsenan/vender-odoo-base:research-20261015-49529f0 --version
           docker run --rm --network none --entrypoint wkhtmltopdf \
-            ghcr.io/amgdsenan/vender-odoo-base:research-20261015-49529f0 --version
+            ghcr.io/amgadsenan/vender-odoo-base:research-20261015-49529f0 --version
           docker run --rm --network none --entrypoint rtlcss \
-            ghcr.io/amgdsenan/vender-odoo-base:research-20261015-49529f0 --version
+            ghcr.io/amgadsenan/vender-odoo-base:research-20261015-49529f0 --version
       - name: Authenticate to GitHub Container Registry
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -67,7 +67,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          docker push ghcr.io/amgdsenan/vender-odoo-base:research-20261015-49529f0
+          docker push ghcr.io/amgadsenan/vender-odoo-base:research-20261015-49529f0
       - name: Document limits
         if: always()
         shell: bash
