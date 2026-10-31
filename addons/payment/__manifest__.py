@@ -10,7 +10,8 @@
         # Record data
         "data/ir_actions_server_data.xml",
         "data/ir_cron_data.xml",
-        "data/payment_provider_data.xml",
+        # Vender technical core: optional payment-provider catalogue is not loaded.
+        # Provider metadata and icons remain in the original XML for later ownership migration.
         "data/portal_entry_data.xml",
         # Security
         "security/ir.access.csv",
