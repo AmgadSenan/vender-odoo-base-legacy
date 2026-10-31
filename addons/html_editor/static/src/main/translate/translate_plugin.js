@@ -28,7 +28,7 @@ export class TranslatePlugin extends Plugin {
                 id: "translate",
                 groupId: "translate",
                 description: _t("Translate with Google Translate"),
-                isAvailable: (selection) => !selection.isCollapsed && user.userId,
+                isAvailable: () => false, // Paid Odoo translation is disabled in Vender.
                 isDisabled: this.isNotReplaceableByAI.bind(this),
                 Component: LanguageSelector,
                 props: {
