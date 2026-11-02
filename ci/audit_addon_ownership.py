@@ -95,6 +95,20 @@ def main():
     p.add_argument("--json", type=Path, help="Write report (optional); no source edits")
     args = p.parse_args()
 
+    # A sparse checkout can expose this script while omitting every addon.
+    # Never report a misleading "zero dependencies" from such a source.
+    required_manifests = (
+        args.base_root / "odoo" / "addons" / "base" / "__manifest__.py",
+        args.base_root / "addons" / "web" / "__manifest__.py",
+    )
+    if not all(manifest.is_file() for manifest in required_manifests):
+        print(
+            "ERROR: incomplete Odoo source checkout; both core base and "
+            "web manifests must be present before auditing dependencies",
+            file=sys.stderr,
+        )
+        return 2
+
     modules = (
         scan(args.base_root / "odoo" / "addons", "base-core")
         + scan(args.base_root / "addons", "base-extras")
